@@ -1,0 +1,457 @@
+# RUN: llc -mtriple=x86_64-pc-linux-gnu -mattr=+fma \
+# RUN:     --load=%llvmshlibdir/FmaCombinePass_Shkurinskaya_Elena_FIIT2_BACKEND%shlibext \
+# RUN:     -run-pass=fma-combine %s -o - | FileCheck %s
+--- |
+  ; ModuleID = './llvm/test/compiler-course/technoir/test12.mir'
+  source_filename = "./llvm/test/compiler-course/technoir/test1.ll"
+  target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
+  
+  define void @test_fuse_scalar_f32(ptr %a, ptr %b, ptr %c, ptr %d) #0 {
+  entry:
+    %a0 = load float, ptr %a, align 4
+    %b0 = load float, ptr %b, align 4
+    %m0 = fmul float %a0, %b0
+    %c0 = load float, ptr %c, align 4
+    %s0 = fsub float %c0, %m0
+    store float %s0, ptr %d, align 4
+    ret void
+  }
+  
+  define void @test_fuse_vector4_f32(ptr %a, ptr %b, ptr %c, ptr %d) #0 {
+  entry:
+    %a1 = load <4 x float>, ptr %a, align 16
+    %b1 = load <4 x float>, ptr %b, align 16
+    %m1 = fmul <4 x float> %a1, %b1
+    %c1 = load <4 x float>, ptr %c, align 16
+    %s1 = fsub <4 x float> %c1, %m1
+    store <4 x float> %s1, ptr %d, align 16
+    ret void
+  }
+  
+  define void @test_fuse_scalar_f64(ptr %a, ptr %b, ptr %c, ptr %d) #0 {
+  entry:
+    %a2 = load double, ptr %a, align 8
+    %b2 = load double, ptr %b, align 8
+    %m2 = fmul double %a2, %b2
+    %c2 = load double, ptr %c, align 8
+    %s2 = fsub double %c2, %m2
+    store double %s2, ptr %d, align 8
+    ret void
+  }
+  
+  define void @test_fuse_vector2_f64(ptr %a, ptr %b, ptr %c, ptr %d) #0 {
+  entry:
+    %a3 = load <2 x double>, ptr %a, align 16
+    %b3 = load <2 x double>, ptr %b, align 16
+    %m3 = fmul <2 x double> %a3, %b3
+    %c3 = load <2 x double>, ptr %c, align 16
+    %s3 = fsub <2 x double> %c3, %m3
+    store <2 x double> %s3, ptr %d, align 16
+    ret void
+  }
+  
+  define void @test_no_fuse_add(ptr %a, ptr %b, ptr %c, ptr %d) #0 {
+  entry:
+    %a4 = load float, ptr %a, align 4
+    %b4 = load float, ptr %b, align 4
+    %x4 = fadd float %a4, %b4
+    %c4 = load float, ptr %c, align 4
+    %s4 = fsub float %c4, %x4
+    store float %s4, ptr %d, align 4
+    ret void
+  }
+  
+  attributes #0 = { "target-cpu"="znver3" "target-features"="+fma" }
+
+...
+---
+name:            test_fuse_scalar_f32
+alignment:       16
+exposesReturnsTwice: false
+legalized:       false
+regBankSelected: false
+selected:        false
+failedISel:      false
+tracksRegLiveness: true
+hasWinCFI:       false
+callsEHReturn:   false
+callsUnwindInit: false
+hasEHCatchret:   false
+hasEHScopes:     false
+hasEHFunclets:   false
+isOutlined:      false
+debugInstrRef:   true
+failsVerification: false
+tracksDebugUserValues: false
+registers:
+  - { id: 0, class: gr64, preferred-register: '' }
+  - { id: 1, class: gr64, preferred-register: '' }
+  - { id: 2, class: gr64, preferred-register: '' }
+  - { id: 3, class: gr64, preferred-register: '' }
+  - { id: 4, class: fr32, preferred-register: '' }
+  - { id: 5, class: fr32, preferred-register: '' }
+  - { id: 6, class: fr32, preferred-register: '' }
+  - { id: 7, class: fr32, preferred-register: '' }
+liveins:
+  - { reg: '$rdi', virtual-reg: '%0' }
+  - { reg: '$rsi', virtual-reg: '%1' }
+  - { reg: '$rdx', virtual-reg: '%2' }
+  - { reg: '$rcx', virtual-reg: '%3' }
+frameInfo:
+  isFrameAddressTaken: false
+  isReturnAddressTaken: false
+  hasStackMap:     false
+  hasPatchPoint:   false
+  stackSize:       0
+  offsetAdjustment: 0
+  maxAlignment:    1
+  adjustsStack:    false
+  hasCalls:        false
+  stackProtector:  ''
+  functionContext: ''
+  maxCallFrameSize: 4294967295
+  cvBytesOfCalleeSavedRegisters: 0
+  hasOpaqueSPAdjustment: false
+  hasVAStart:      false
+  hasMustTailInVarArgFunc: false
+  hasTailCall:     false
+  isCalleeSavedInfoValid: false
+  localFrameSize:  0
+  savePoint:       ''
+  restorePoint:    ''
+fixedStack:      []
+stack:           []
+entry_values:    []
+callSites:       []
+debugValueSubstitutions: []
+constants:       []
+machineFunctionInfo:
+  amxProgModel:    None
+body:             |
+  bb.0.entry:
+    liveins: $rdi, $rsi, $rdx, $rcx
+  
+    %3:gr64 = COPY $rcx
+    %2:gr64 = COPY $rdx
+    %1:gr64 = COPY $rsi
+    %0:gr64 = COPY $rdi
+    %4:fr32 = MOVSSrm_alt %0, 1, $noreg, 0, $noreg :: (load (s32) from %ir.a)
+    %7:fr32 = VFMSUB213SSr %4, %1, %6, 0, implicit $mxcsr, implicit $mxcsr, implicit $mxcsr
+    %6:fr32 = MOVSSrm_alt %2, 1, $noreg, 0, $noreg :: (load (s32) from %ir.c)
+    MOVSSmr %3, 1, $noreg, 0, $noreg, killed %7 :: (store (s32) into %ir.d)
+    RET 0
+
+...
+---
+name:            test_fuse_vector4_f32
+alignment:       16
+exposesReturnsTwice: false
+legalized:       false
+regBankSelected: false
+selected:        false
+failedISel:      false
+tracksRegLiveness: true
+hasWinCFI:       false
+callsEHReturn:   false
+callsUnwindInit: false
+hasEHCatchret:   false
+hasEHScopes:     false
+hasEHFunclets:   false
+isOutlined:      false
+debugInstrRef:   true
+failsVerification: false
+tracksDebugUserValues: false
+registers:
+  - { id: 0, class: gr64, preferred-register: '' }
+  - { id: 1, class: gr64, preferred-register: '' }
+  - { id: 2, class: gr64, preferred-register: '' }
+  - { id: 3, class: gr64, preferred-register: '' }
+  - { id: 4, class: vr128, preferred-register: '' }
+  - { id: 5, class: vr128, preferred-register: '' }
+  - { id: 6, class: vr128, preferred-register: '' }
+  - { id: 7, class: vr128, preferred-register: '' }
+liveins:
+  - { reg: '$rdi', virtual-reg: '%0' }
+  - { reg: '$rsi', virtual-reg: '%1' }
+  - { reg: '$rdx', virtual-reg: '%2' }
+  - { reg: '$rcx', virtual-reg: '%3' }
+frameInfo:
+  isFrameAddressTaken: false
+  isReturnAddressTaken: false
+  hasStackMap:     false
+  hasPatchPoint:   false
+  stackSize:       0
+  offsetAdjustment: 0
+  maxAlignment:    1
+  adjustsStack:    false
+  hasCalls:        false
+  stackProtector:  ''
+  functionContext: ''
+  maxCallFrameSize: 4294967295
+  cvBytesOfCalleeSavedRegisters: 0
+  hasOpaqueSPAdjustment: false
+  hasVAStart:      false
+  hasMustTailInVarArgFunc: false
+  hasTailCall:     false
+  isCalleeSavedInfoValid: false
+  localFrameSize:  0
+  savePoint:       ''
+  restorePoint:    ''
+fixedStack:      []
+stack:           []
+entry_values:    []
+callSites:       []
+debugValueSubstitutions: []
+constants:       []
+machineFunctionInfo:
+  amxProgModel:    None
+body:             |
+  bb.0.entry:
+    liveins: $rdi, $rsi, $rdx, $rcx
+  
+    %3:gr64 = COPY $rcx
+    %2:gr64 = COPY $rdx
+    %1:gr64 = COPY $rsi
+    %0:gr64 = COPY $rdi
+    %4:vr128 = MOVAPSrm %0, 1, $noreg, 0, $noreg :: (load (s128) from %ir.a)
+    %7:vr128 = VFMSUB213PSr %4, %1, %6, 0, implicit $mxcsr, implicit $mxcsr, implicit $mxcsr
+    %6:vr128 = MOVAPSrm %2, 1, $noreg, 0, $noreg :: (load (s128) from %ir.c)
+    MOVAPSmr %3, 1, $noreg, 0, $noreg, killed %7 :: (store (s128) into %ir.d)
+    RET 0
+
+...
+---
+name:            test_fuse_scalar_f64
+alignment:       16
+exposesReturnsTwice: false
+legalized:       false
+regBankSelected: false
+selected:        false
+failedISel:      false
+tracksRegLiveness: true
+hasWinCFI:       false
+callsEHReturn:   false
+callsUnwindInit: false
+hasEHCatchret:   false
+hasEHScopes:     false
+hasEHFunclets:   false
+isOutlined:      false
+debugInstrRef:   true
+failsVerification: false
+tracksDebugUserValues: false
+registers:
+  - { id: 0, class: gr64, preferred-register: '' }
+  - { id: 1, class: gr64, preferred-register: '' }
+  - { id: 2, class: gr64, preferred-register: '' }
+  - { id: 3, class: gr64, preferred-register: '' }
+  - { id: 4, class: fr64, preferred-register: '' }
+  - { id: 5, class: fr64, preferred-register: '' }
+  - { id: 6, class: fr64, preferred-register: '' }
+  - { id: 7, class: fr64, preferred-register: '' }
+liveins:
+  - { reg: '$rdi', virtual-reg: '%0' }
+  - { reg: '$rsi', virtual-reg: '%1' }
+  - { reg: '$rdx', virtual-reg: '%2' }
+  - { reg: '$rcx', virtual-reg: '%3' }
+frameInfo:
+  isFrameAddressTaken: false
+  isReturnAddressTaken: false
+  hasStackMap:     false
+  hasPatchPoint:   false
+  stackSize:       0
+  offsetAdjustment: 0
+  maxAlignment:    1
+  adjustsStack:    false
+  hasCalls:        false
+  stackProtector:  ''
+  functionContext: ''
+  maxCallFrameSize: 4294967295
+  cvBytesOfCalleeSavedRegisters: 0
+  hasOpaqueSPAdjustment: false
+  hasVAStart:      false
+  hasMustTailInVarArgFunc: false
+  hasTailCall:     false
+  isCalleeSavedInfoValid: false
+  localFrameSize:  0
+  savePoint:       ''
+  restorePoint:    ''
+fixedStack:      []
+stack:           []
+entry_values:    []
+callSites:       []
+debugValueSubstitutions: []
+constants:       []
+machineFunctionInfo:
+  amxProgModel:    None
+body:             |
+  bb.0.entry:
+    liveins: $rdi, $rsi, $rdx, $rcx
+  
+    %3:gr64 = COPY $rcx
+    %2:gr64 = COPY $rdx
+    %1:gr64 = COPY $rsi
+    %0:gr64 = COPY $rdi
+    %4:fr64 = MOVSDrm_alt %0, 1, $noreg, 0, $noreg :: (load (s64) from %ir.a)
+    %7:fr64 = VFMSUB213SDr %4, %1, %6, 0, implicit $mxcsr, implicit $mxcsr, implicit $mxcsr
+    %6:fr64 = MOVSDrm_alt %2, 1, $noreg, 0, $noreg :: (load (s64) from %ir.c)
+    MOVSDmr %3, 1, $noreg, 0, $noreg, killed %7 :: (store (s64) into %ir.d)
+    RET 0
+
+...
+---
+name:            test_fuse_vector2_f64
+alignment:       16
+exposesReturnsTwice: false
+legalized:       false
+regBankSelected: false
+selected:        false
+failedISel:      false
+tracksRegLiveness: true
+hasWinCFI:       false
+callsEHReturn:   false
+callsUnwindInit: false
+hasEHCatchret:   false
+hasEHScopes:     false
+hasEHFunclets:   false
+isOutlined:      false
+debugInstrRef:   true
+failsVerification: false
+tracksDebugUserValues: false
+registers:
+  - { id: 0, class: gr64, preferred-register: '' }
+  - { id: 1, class: gr64, preferred-register: '' }
+  - { id: 2, class: gr64, preferred-register: '' }
+  - { id: 3, class: gr64, preferred-register: '' }
+  - { id: 4, class: vr128, preferred-register: '' }
+  - { id: 5, class: vr128, preferred-register: '' }
+  - { id: 6, class: vr128, preferred-register: '' }
+  - { id: 7, class: vr128, preferred-register: '' }
+liveins:
+  - { reg: '$rdi', virtual-reg: '%0' }
+  - { reg: '$rsi', virtual-reg: '%1' }
+  - { reg: '$rdx', virtual-reg: '%2' }
+  - { reg: '$rcx', virtual-reg: '%3' }
+frameInfo:
+  isFrameAddressTaken: false
+  isReturnAddressTaken: false
+  hasStackMap:     false
+  hasPatchPoint:   false
+  stackSize:       0
+  offsetAdjustment: 0
+  maxAlignment:    1
+  adjustsStack:    false
+  hasCalls:        false
+  stackProtector:  ''
+  functionContext: ''
+  maxCallFrameSize: 4294967295
+  cvBytesOfCalleeSavedRegisters: 0
+  hasOpaqueSPAdjustment: false
+  hasVAStart:      false
+  hasMustTailInVarArgFunc: false
+  hasTailCall:     false
+  isCalleeSavedInfoValid: false
+  localFrameSize:  0
+  savePoint:       ''
+  restorePoint:    ''
+fixedStack:      []
+stack:           []
+entry_values:    []
+callSites:       []
+debugValueSubstitutions: []
+constants:       []
+machineFunctionInfo:
+  amxProgModel:    None
+body:             |
+  bb.0.entry:
+    liveins: $rdi, $rsi, $rdx, $rcx
+  
+    %3:gr64 = COPY $rcx
+    %2:gr64 = COPY $rdx
+    %1:gr64 = COPY $rsi
+    %0:gr64 = COPY $rdi
+    %4:vr128 = MOVAPDrm %0, 1, $noreg, 0, $noreg :: (load (s128) from %ir.a)
+    %7:vr128 = VFMSUB213PDYr %4, %1, %6, 0, implicit $mxcsr, implicit $mxcsr, implicit $mxcsr
+    %6:vr128 = MOVAPDrm %2, 1, $noreg, 0, $noreg :: (load (s128) from %ir.c)
+    MOVAPDmr %3, 1, $noreg, 0, $noreg, killed %7 :: (store (s128) into %ir.d)
+    RET 0
+
+...
+---
+name:            test_no_fuse_add
+alignment:       16
+exposesReturnsTwice: false
+legalized:       false
+regBankSelected: false
+selected:        false
+failedISel:      false
+tracksRegLiveness: true
+hasWinCFI:       false
+callsEHReturn:   false
+callsUnwindInit: false
+hasEHCatchret:   false
+hasEHScopes:     false
+hasEHFunclets:   false
+isOutlined:      false
+debugInstrRef:   true
+failsVerification: false
+tracksDebugUserValues: false
+registers:
+  - { id: 0, class: gr64, preferred-register: '' }
+  - { id: 1, class: gr64, preferred-register: '' }
+  - { id: 2, class: gr64, preferred-register: '' }
+  - { id: 3, class: gr64, preferred-register: '' }
+  - { id: 4, class: fr32, preferred-register: '' }
+  - { id: 5, class: fr32, preferred-register: '' }
+  - { id: 6, class: fr32, preferred-register: '' }
+  - { id: 7, class: fr32, preferred-register: '' }
+liveins:
+  - { reg: '$rdi', virtual-reg: '%0' }
+  - { reg: '$rsi', virtual-reg: '%1' }
+  - { reg: '$rdx', virtual-reg: '%2' }
+  - { reg: '$rcx', virtual-reg: '%3' }
+frameInfo:
+  isFrameAddressTaken: false
+  isReturnAddressTaken: false
+  hasStackMap:     false
+  hasPatchPoint:   false
+  stackSize:       0
+  offsetAdjustment: 0
+  maxAlignment:    1
+  adjustsStack:    false
+  hasCalls:        false
+  stackProtector:  ''
+  functionContext: ''
+  maxCallFrameSize: 4294967295
+  cvBytesOfCalleeSavedRegisters: 0
+  hasOpaqueSPAdjustment: false
+  hasVAStart:      false
+  hasMustTailInVarArgFunc: false
+  hasTailCall:     false
+  isCalleeSavedInfoValid: false
+  localFrameSize:  0
+  savePoint:       ''
+  restorePoint:    ''
+fixedStack:      []
+stack:           []
+entry_values:    []
+callSites:       []
+debugValueSubstitutions: []
+constants:       []
+machineFunctionInfo:
+  amxProgModel:    None
+body:             |
+  bb.0.entry:
+    liveins: $rdi, $rsi, $rdx, $rcx
+  
+    %3:gr64 = COPY $rcx
+    %2:gr64 = COPY $rdx
+    %1:gr64 = COPY $rsi
+    %0:gr64 = COPY $rdi
+    %4:fr32 = MOVSSrm_alt %0, 1, $noreg, 0, $noreg :: (load (s32) from %ir.a)
+    %5:fr32 = nofpexcept ADDSSrm %4, %1, 1, $noreg, 0, $noreg, implicit $mxcsr :: (load (s32) from %ir.b)
+    %6:fr32 = MOVSSrm_alt %2, 1, $noreg, 0, $noreg :: (load (s32) from %ir.c)
+    %7:fr32 = nofpexcept SUBSSrr %6, killed %5, implicit $mxcsr
+    MOVSSmr %3, 1, $noreg, 0, $noreg, killed %7 :: (store (s32) into %ir.d)
+    RET 0
+
+...
